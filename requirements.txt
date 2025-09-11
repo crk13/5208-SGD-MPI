@@ -1,5 +1,5 @@
 numpy
 pandas
-mpi4py == 4.0.3
+mpi4py==4.0.3
 argparse
 matplotlib
