@@ -2,13 +2,13 @@
 import argparse
 import numpy as np
 from mpi4py import MPI
-
+#mpi.py (训练循环) → 调用 grad_descent.py → 用到 model.py (网络结构) → 用到 para.py (参数张量)
 # ---- 与另一位同学约定的接口（在 grad_descent.py 中实现） ----
 # - init_params(in_dim:int, hidden:int, activation:str, seed:int) -> params(any)
 # - compute_local_grads(params, Xb, yb) -> (grads:dict[str,np.ndarray], loss:float, count:int)
 # - apply_grads(params, grads_avg:dict[str,np.ndarray], lr:float) -> None
 # - predict(params, Xb) -> yhat (for RMSE eval)
-import grad_descent as GD  # 另一位同学提供
+import src.grad_descent as GD  # 另一位同学提供
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
@@ -19,11 +19,42 @@ def log0(msg: str):
     if rank == 0:
         print(msg, flush=True)
 
-def load_npz(path: str):
+def load_npz_local(path: str):
     # 约定：预处理脚本把数据存成 npz：X, y（y 为列向量 shape=(N,1)）
-    data = np.load(path)
-    X, y = data["df_X"], data["df_y"]
+    data = np.load(path, allow_pickle=True)
+    # 兼容旧键名 df_X/df_y
+    X = data["X"] if "X" in data else data["df_X"]
+    y = data["y"] if "y" in data else data["df_y"]
     return X, y
+
+
+def load_npz_distributed(path: str):
+    """rank0 读取完整 npz，然后按 rank 均匀切片后 scatter 给各个进程。
+    返回：X_local, y_local, N_total
+    """
+    if rank == 0:
+        data = np.load(path, allow_pickle=True)
+        X = data["X"] if "X" in data else data["df_X"]
+        y = data["y"] if "y" in data else data["df_y"]
+        # 统一 dtype/形状
+        X = X.astype(np.float32, copy=False)
+        y = y.astype(np.float32, copy=False)
+        if y.ndim == 1:
+            y = y.reshape(-1, 1)
+        N_total = int(X.shape[0])
+        # 按 rank 均匀切片（与 shard_indices 一致的近乎均匀分片）
+        X_chunks = np.array_split(X, size)
+        y_chunks = np.array_split(y, size)
+    else:
+        X_chunks = None
+        y_chunks = None
+        N_total = None
+    # 分发各自分片
+    X_local = comm.scatter(X_chunks, root=0)
+    y_local = comm.scatter(y_chunks, root=0)
+    # 广播全局样本总数（用于 train_epoch 中的全局采样与映射）
+    N_total = comm.bcast(N_total, root=0)
+    return X_local, y_local, N_total
 
 def shard_indices(n_samples: int, world_size: int, r: int):
     # world_size：进程总数（即 MPI 的 rank 总数）；r：当前进程的 rank 编号。
@@ -109,23 +140,50 @@ def train_epoch(params, X_local, y_local, batch_size, lr, sampler_rng, total_N):
         ## 5. 本地梯度与损失计算： 让另一位同学的代码计算本地梯度、损失和样本数（count）（只用 numpy，禁止在对方代码里 import MPI）
         grads_loc, loss_loc, cnt_loc = GD.compute_local_grads(params, Xb, yb)
 
-        ## 6. 全局聚合 ---- Allreduce 聚合 ----
-        # 1) 聚合标量（loss、count）
-        loss_sum = allreduce_sum_scalar(loss_loc) # 聚合所有进程的损失和样本数（全局求和）
-        cnt_sum = allreduce_sum_scalar(cnt_loc)
+        ## 6. 全局聚合 ---- Allreduce 聚合（非阻塞 Iallreduce 版本）----
+        # 1) 聚合标量（loss、count）：先发起非阻塞 allreduce，再等待
+        #    注意：mpi4py 的 Iallreduce 需要显式的 send/recv buffer（numpy 数组）
+        loss_send = np.array(float(loss_loc), dtype=np.float64)
+        loss_recv = np.empty(1, dtype=np.float64)
+        req_loss = comm.Iallreduce(loss_send, loss_recv, op=MPI.SUM)
 
-        # 2) 聚合每一个梯度张量：按键遍历，逐项 Allreduce
-        # 对每个梯度张量做全局求和，然后用全局样本数做平均，得到全局平均梯度。
-        grads_avg = {}
+        cnt_send = np.array(int(cnt_loc), dtype=np.int64)
+        cnt_recv = np.empty(1, dtype=np.int64)
+        req_cnt = comm.Iallreduce(cnt_send, cnt_recv, op=MPI.SUM)
+
+        # 2) 聚合每一个梯度张量：为每个梯度张量发起 Iallreduce，然后统一等待（可与轻量计算重叠）
+        grad_recv_bufs = {}
+        grad_reqs = []
         for k, g in grads_loc.items():
-            g_sum = allreduce_sum_array(g)
-            # 用全局 batch 样本数做平均（注意 cnt_sum 可能小于 batch_size 的情况）
-            if cnt_sum > 0:
-                grads_avg[k] = g_sum / cnt_sum
-            else:
-                grads_avg[k] = g_sum  # 都是零
+            # 确保 dtype/shape 一致；采用就地类型（通常 float32）
+            g_send = np.asarray(g, dtype=np.float32)
+            g_recv = np.empty_like(g_send)
+            req = comm.Iallreduce(g_send, g_recv, op=MPI.SUM)
+            grad_recv_bufs[k] = g_recv
+            grad_reqs.append(req)
 
-        # 3) 每个 rank 同步地应用同一个 grads_avg 更新（使得参数保持一致）
+        # —— 到这里通信已在后台进行。若有可并行的 CPU 工作，可在此处执行（例如下一个 batch 的索引准备）。——
+
+        # 3) 等待标量与梯度的通信完成
+        req_loss.Wait()
+        req_cnt.Wait()
+        MPI.Request.Waitall(grad_reqs)
+
+        loss_sum = float(loss_recv[0])
+        cnt_sum = int(cnt_recv[0])
+
+        # 4) 归一化得到全局平均梯度
+        grads_avg = {}
+        if cnt_sum > 0:
+            inv_cnt = 1.0 / float(cnt_sum)
+            for k, g_sum in grad_recv_bufs.items():
+                grads_avg[k] = g_sum * inv_cnt
+        else:
+            # 极端情况下（本批全空）维持零梯度
+            for k, g_sum in grad_recv_bufs.items():
+                grads_avg[k] = g_sum
+
+        # 5) 每个 rank 同步地应用同一个 grads_avg 更新（使得参数保持一致）
         GD.apply_grads(params, grads_avg, lr)
 
         # 统计平均损失（除以全局样本数）
@@ -169,21 +227,12 @@ def main():
     np.random.seed(seed)
     sampler_rng = np.random.default_rng(seed)
 
-    # 载入训练/测试数据（rank0读或大家各自读都可以；这里大家各自读，简单可靠）
-    Xtr, ytr = load_npz(args.train)
-    Xte, yte = load_npz(args.test)
-    Ntr = Xtr.shape[0]
-    Nte = Xte.shape[0]
+    # 载入训练/测试数据：rank0 读取并分发，各 rank 本地只持有自己的分片
+    Xtr_loc, ytr_loc, Ntr = load_npz_distributed(args.train)
+    Xte_loc, yte_loc, Nte = load_npz_distributed(args.test)
 
-    # 计算本地分片范围
-    s_tr, e_tr = shard_indices(Ntr, size, rank)
-    s_te, e_te = shard_indices(Nte, size, rank)
-
-    Xtr_loc, ytr_loc = Xtr[s_tr:e_tr], ytr[s_tr:e_tr]
-    Xte_loc, yte_loc = Xte[s_te:e_te], yte[s_te:e_te]
-
-    # 初始化模型参数（所有 rank 必须一致）
-    in_dim = Xtr.shape[1]
+    # 初始化模型参数（所有 rank 必须一致；各本地分片的列数相同）
+    in_dim = Xtr_loc.shape[1]
     params = GD.init_params(in_dim=in_dim, hidden=args.hidden,
                             activation=args.activation, seed=seed)
 

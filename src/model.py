@@ -1,5 +1,6 @@
 import numpy as np
-from source.para import MPITensor
+# 依赖于para.py
+from src.para import MPITensor
 
 # class Module:
 #     def __init__(self):
