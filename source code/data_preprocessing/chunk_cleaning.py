@@ -1,5 +1,6 @@
 # 实现数据块清洗功能
 import pandas as pd
+
 def chunk_cleaning(chunk):
     # 处理重复和缺失值
     chunk = chunk.drop_duplicates()

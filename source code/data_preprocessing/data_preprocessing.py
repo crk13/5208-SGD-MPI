@@ -1,16 +1,14 @@
 import pandas as pd
-from sklearn.preprocessing import MinMaxScaler
 from chunk_cleaning import chunk_cleaning
 from switch_class import switch_class
-import pandas as pd
 import os
 import time
 
 #1.配置参数
 file_path = 'data/raw/nytaxi2022.csv'
 processed_file_path = 'data/processed/nytaxi2022_cleaned_full.csv'
-chunk_size = 1_000_000  # 每次处理100万行
-colums_to_use=['tpep_pickup_datetime', 
+chunk_size = 1000000  # 每次处理100万行
+columns_to_use=['tpep_pickup_datetime', 
                'tpep_dropoff_datetime',
                 'passenger_count', 
                 'trip_distance',
@@ -18,8 +16,8 @@ colums_to_use=['tpep_pickup_datetime',
                 'PULocationID',
                 'DOLocationID',
                 'payment_type',
-                'extra'
-                'toal_amount']
+                'extra',
+                'total_amount']
 #需要归一化的列
 num_cols =['passenger_count', 'trip_distance', 'extra']
 
@@ -30,7 +28,7 @@ global_min_max_stats = {col: {'min': float('inf'), 'max': float('-inf')} for col
 chunk_iterator_stats = pd.read_csv(
     file_path, 
     chunksize=chunk_size, 
-    usecols=colums_to_use,
+    usecols=columns_to_use,
     low_memory=False
 )
 
@@ -61,7 +59,7 @@ if os.path.exists(processed_file_path):
 chunk_iterator_process = pd.read_csv(
     file_path, 
     chunksize=chunk_size, 
-    usecols=colums_to_use,
+    usecols=columns_to_use,
     low_memory=False
 )
 is_first_chunk = True
