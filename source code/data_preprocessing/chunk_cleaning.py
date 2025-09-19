@@ -6,8 +6,8 @@ def chunk_cleaning(chunk):
     chunk = chunk.drop_duplicates()
     chunk = chunk.dropna()
     # 将 object 类型转换为 datetime 类型
-    chunk['tpep_pickup_datetime'] = pd.to_datetime(chunk['tpep_pickup_datetime'], errors='coerce')
-    chunk['tpep_dropoff_datetime'] = pd.to_datetime(chunk['tpep_dropoff_datetime'], errors='coerce')
+    chunk['tpep_pickup_datetime'] = pd.to_datetime(chunk['tpep_pickup_datetime'], format="%m/%d/%Y %I:%M:%S %p", errors='coerce')
+    chunk['tpep_dropoff_datetime'] = pd.to_datetime(chunk['tpep_dropoff_datetime'], format="%m/%d/%Y %I:%M:%S %p", errors='coerce')
     # 逻辑一致性检查：下车时间早于或等于上车时间
     chunk = chunk[chunk['tpep_dropoff_datetime'] > chunk['tpep_pickup_datetime']]
     # 删除乘客数<=0的记录
