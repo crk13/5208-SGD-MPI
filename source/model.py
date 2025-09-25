@@ -128,3 +128,19 @@ class MSELoss:
     def backward(self):
         B = self.y.shape[0]
         return (self.yhat - self.y) / B
+    
+
+class RMSELoss:
+    def __init__(self):
+        self.yhat = None
+        self.y = None           
+
+    def forward(self, yhat, y):
+        self.yhat = yhat
+        self.y = y
+        loss = np.sqrt(np.mean((yhat - y) ** 2))
+        return loss 
+
+    def backward(self):
+        B = self.y.shape[0]
+        return (self.yhat - self.y) / (B * np.sqrt(np.mean((self.yhat - self.y) ** 2)) + 1e-8)

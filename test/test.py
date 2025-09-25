@@ -56,3 +56,5 @@ for epoch in range(epochs):
     comm.Allreduce(MPI.IN_PLACE, loss_arr, op=MPI.SUM)
     if rank == 0:
         print(f"Epoch {epoch+1}, Loss={loss_arr[0]/size:.4f}")
+
+print(f"done! [Rank {rank}]")
