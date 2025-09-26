@@ -36,17 +36,49 @@ class SafeSGD:
     def step(self, local_batch_size):
         for p in self.params:
             # local_grad = p.grad if p.grad is not None else np.zeros_like(p.val)
-            global_grad = comm.allreduce(p.grad, MPI.SUM)
+            global_grad_sum = self.comm.allreduce(p.grad, MPI.SUM)
 
-            global_batch_size = comm.allreduce(local_batch_size, MPI.SUM)
+            global_batch_size_sum = self.comm.allreduce(local_batch_size, MPI.SUM)
             
-            if global_batch_size > 0:
-                p.grad = global_grad / global_batch_size
+            if global_batch_size_sum > 0:
+                p.grad = global_grad_sum / global_batch_size_sum
                 p.val -= self.lr * p.grad
 
     def zero_grad(self):
         for p in self.params:
             p.zero_grad()
+
+
+class HybridSafeSGD:
+    def __init__(self, params, lr=0.1, comm = MPI.COMM_WORLD):
+        self.params = params
+        self.lr = lr
+        self.comm = comm
+        # MPI.COMM_TYPE_SHARED是MPI预定义常量，按照共享同一块物理内存（同一台机器）的进程，把它们分到一个通信器里。
+        self.local_comm = comm.Split_type(MPI.COMM_TYPE_SHARED)
+
+    def step_vm(self, local_batch_size):
+        for p in self.params:
+            thisvm_grad_sum = self.local_comm.allreduce(p.grad, MPI.SUM)
+            thisvm_batch_size_sum = self.local_comm.allreduce(local_batch_size, MPI.SUM)
+
+            if thisvm_batch_size_sum > 0:
+                p.grad = thisvm_grad_sum / thisvm_batch_size_sum
+                p.val -= self.lr * p.grad
+    
+    def step_glob(self, local_batch_size):
+        for p in self.params:
+            psum = self.comm.allreduce(p.val, MPI.SUM)
+            gsum = self.comm.allreduce(p.grad, MPI.SUM)
+            bsum = self.comm.allreduce(local_batch_size, MPI.SUM)
+            if bsum > 0:
+                p.grad = gsum / bsum
+                p.val = psum / bsum - self.lr * p.grad
+             
+    def zero_grad(self):
+        for p in self.params:
+            p.zero_grad()
+
 
 
 if __name__ == "__main__":

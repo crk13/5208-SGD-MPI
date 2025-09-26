@@ -6,7 +6,7 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
 
-def global_train(model, optim, X, y, lossfn=MSELoss(), batch_size=32, shuffle=True, comm=comm):
+def global_train(model, optim, X, y, lossfn=MSELoss(), batch_size=32, shuffle=True, glob_interval=1000, comm=comm):
     local_size = X.shape[0]
     max_local_size = comm.allreduce(local_size, MPI.MAX)
     local_loss = 0.0
@@ -31,16 +31,29 @@ def global_train(model, optim, X, y, lossfn=MSELoss(), batch_size=32, shuffle=Tr
             loss_val = lossfn.forward(yhat, yb)
             dLdy = lossfn.backward()
             model.backward(dLdy)
-            optim.step(batch_len)
+            if hasattr(optim, 'step_vm') and hasattr(optim, 'step_glob'):
+                if (i // batch_size) % glob_interval == 0:
+                    optim.step_glob(batch_len)
+                else:
+                    optim.step_vm(batch_len)
+            else:
+                optim.step(batch_len)
 
             local_loss += float(loss_val)
 
         else:
             batch_len = 0
             optim.zero_grad()
-            optim.step(batch_len)
+
+            if hasattr(optim, 'step_vm') and hasattr(optim, 'step_glob'):
+                if (i // batch_size) % glob_interval == 0:
+                    optim.step_glob(batch_len)
+                else:
+                    optim.step_vm(batch_len)
+            else:
+                optim.step(batch_len)
             
-        if i // batch_size % 10000 == 0:
+        if i // batch_size % 500 == 0:
             print(f"{rank}: [Batch {i//batch_size}] Loss = {loss_val: .4f}")
     
     # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -52,9 +65,10 @@ def global_train(model, optim, X, y, lossfn=MSELoss(), batch_size=32, shuffle=Tr
     return global_loss_sum / global_size
 
 
-def global_rmse_eval(model, X, y, comm=comm):
+def global_rmse_scaled(model, X, y, y_max, y_min, comm=comm):
     yhat = model.forward(X)
-    local_sq_error = np.sum((yhat - y) ** 2)
+    yhat_scale = yhat * (y_max - y_min) + y_min
+    local_sq_error = np.sum((yhat_scale - y) ** 2)
     local_count = X.shape[0]
 
     global_sq_error = comm.allreduce(local_sq_error, op=MPI.SUM)
