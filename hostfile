@@ -1,2 +1,2 @@
-localhost slots=4
-vm32 slots=8
+localhost slots=8
+vm16 slots=4

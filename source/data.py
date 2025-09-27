@@ -3,6 +3,7 @@ from mpi4py import MPI
 import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
+from tqdm import tqdm
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
@@ -22,7 +23,7 @@ def mpi_read_data(file, n_feature, max_req = 8):
         pf = pq.ParquetFile(file)
 
         print(f"[Rank {rank}] Start reading parquet file {file}, total row groups = {pf.num_row_groups}")
-        for i in range(pf.num_row_groups):
+        for i in tqdm(range(pf.num_row_groups), disable=(rank!=0)):
             table = pf.read_row_group(i)
             # mpi4py 的 Send/Isend 只能发送连续内存的数组，比如 numpy.ndarray
             # 数值型矩阵/数组可以直接发，普通 Python 对象需要先序列化：转成 numpy array 或者用 pickle 序列化成字节流再发送
@@ -32,7 +33,7 @@ def mpi_read_data(file, n_feature, max_req = 8):
             # NumPy ndarray：所有元素按行/列紧密排列在一块连续内存里。
             tmp = table.to_pandas().to_numpy(dtype = np.float64)
 
-            print(f"[Rank {rank}] Read row group {i}, shape = {tmp.shape}")
+            # print(f"[Rank {rank}] Read row group {i}, shape = {tmp.shape}")
 
             if dest == 0:
                 data_training, data_test, n_training, n_test = _divide_local_data(tmp, n_feature, data_training, data_test, n_training, n_test)
@@ -58,7 +59,7 @@ def mpi_read_data(file, n_feature, max_req = 8):
             send_req.append(req)
 
         MPI.Request.Waitall(send_req)
-        print(f"[Rank {rank}] Finished sending all data and END signals")
+        # print(f"[Rank {rank}] Finished sending all data and END signals")
         # Python不要free(send_req)，因为内存管理是自动的，列表、数组和对象会在没有引用时自动回收，不像C要手动 malloc/free
 
     else:

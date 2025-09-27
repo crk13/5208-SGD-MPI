@@ -1,6 +1,7 @@
 import numpy as np
 from mpi4py import MPI
 from source.model import MSELoss
+from tqdm import tqdm
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
@@ -26,7 +27,7 @@ def global_train(model, optim, X, y, lossfn=None, batch_size=32, shuffle=True, g
         X = X[idx]
         y = y[idx]
 
-    for i in range(0, max_local_size, batch_size):
+    for i in tqdm(range(0, max_local_size, batch_size), disable=(rank!=0)):
         start = i
         end = min(i + batch_size, local_size)
 
@@ -64,8 +65,8 @@ def global_train(model, optim, X, y, lossfn=None, batch_size=32, shuffle=True, g
             else:
                 optim.step(batch_len)
             
-        if i // batch_size % 5000 == 0:
-            print(f"{rank}: [Batch {i//batch_size}] Loss = {loss_val: .4f}")
+        # if i // batch_size % 10000 == 0:
+        #     print(f"{rank}: [Batch {i//batch_size}] Loss = {loss_val: .4f}")
     
     # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     # FOR RMSE LOSS ONLY
