@@ -6,12 +6,21 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
 
-def global_train(model, optim, X, y, lossfn=MSELoss(), batch_size=32, shuffle=True, glob_interval=1000, comm=comm):
+def global_train(model, optim, X, y, lossfn=None, batch_size=32, shuffle=True, glob_interval=1000, comm=None):
+    if comm is None:
+        comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+
+    if lossfn is None:
+        from source.model import RMSELoss
+        lossfn = RMSELoss()
+    
     local_size = X.shape[0]
     max_local_size = comm.allreduce(local_size, MPI.MAX)
-    local_loss = 0.0
+    local_sse = 0.0
+    local_n = 0
 
-    if shuffle:
+    if shuffle and local_size > 0:
         idx = np.arange(local_size)
         np.random.shuffle(idx)
         X = X[idx]
@@ -28,6 +37,10 @@ def global_train(model, optim, X, y, lossfn=MSELoss(), batch_size=32, shuffle=Tr
 
             optim.zero_grad()
             yhat = model.forward(xb)
+            err = yhat - yb
+            local_sse += float((err*err).sum())
+            local_n += batch_len
+
             loss_val = lossfn.forward(yhat, yb)
             dLdy = lossfn.backward()
             model.backward(dLdy)
@@ -38,8 +51,6 @@ def global_train(model, optim, X, y, lossfn=MSELoss(), batch_size=32, shuffle=Tr
                     optim.step_vm(batch_len)
             else:
                 optim.step(batch_len)
-
-            local_loss += float(loss_val)
 
         else:
             batch_len = 0
@@ -53,22 +64,21 @@ def global_train(model, optim, X, y, lossfn=MSELoss(), batch_size=32, shuffle=Tr
             else:
                 optim.step(batch_len)
             
-        if i // batch_size % 500 == 0:
+        if i // batch_size % 5000 == 0:
             print(f"{rank}: [Batch {i//batch_size}] Loss = {loss_val: .4f}")
     
     # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    # FOR MSE LOSS ONLY
+    # FOR RMSE LOSS ONLY
     # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    local_loss_sum = local_loss * local_size
-    global_loss_sum = comm.allreduce(local_loss_sum, MPI.SUM)
-    global_size = comm.allreduce(local_size, MPI.SUM)
-    return global_loss_sum / global_size
+
+    total_sse = comm.allreduce(local_sse, MPI.SUM)
+    total_n = comm.allreduce(local_n, MPI.SUM)
+    return np.sqrt(total_sse / max(total_n, 1))
 
 
-def global_rmse_scaled(model, X, y, y_max, y_min, comm=comm):
+def global_rmse(model, X, y, comm=comm):
     yhat = model.forward(X)
-    yhat_scale = yhat * (y_max - y_min) + y_min
-    local_sq_error = np.sum((yhat_scale - y) ** 2)
+    local_sq_error = np.sum((yhat - y) ** 2)
     local_count = X.shape[0]
 
     global_sq_error = comm.allreduce(local_sq_error, op=MPI.SUM)

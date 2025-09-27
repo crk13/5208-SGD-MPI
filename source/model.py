@@ -14,7 +14,8 @@ from source.para import MPITensor
 class Linear:
     def __init__(self, indim, outdim):
         # super().__init__()
-        self.W = MPITensor(np.random.randn(indim, outdim))
+        # Xavier init
+        self.W = MPITensor(np.random.randn(indim, outdim) * np.sqrt(2/(indim+outdim)))
         self.b = MPITensor(np.zeros(outdim))
         self.x = None
         self.params = [self.W, self.b]
@@ -142,5 +143,8 @@ class RMSELoss:
         return loss 
 
     def backward(self):
+        # B = self.y.shape[0]
+        # return (self.yhat - self.y) / (B * np.sqrt(np.mean((self.yhat - self.y) ** 2)) + 1e-8)
         B = self.y.shape[0]
-        return (self.yhat - self.y) / (B * np.sqrt(np.mean((self.yhat - self.y) ** 2)) + 1e-8)
+        diff = self.yhat - self.y
+        return diff / B
