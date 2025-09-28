@@ -5,7 +5,7 @@ set -e
 EPOCHS=160
 HIDDEN=30
 LR=0.005
-BATCH_SIZES=(256 128 64 32 16)
+BATCH_SIZES=(128 64 32 16)
 NPROCS=12
 HOSTFILE=hostfile
 PYTHON=/home/76836/miniconda3/envs/mpi/bin/python
