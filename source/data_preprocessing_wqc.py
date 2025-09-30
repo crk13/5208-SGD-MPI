@@ -35,7 +35,6 @@ RATECODE_CATS = [1, 2, 3, 4, 5, 6, 99]
 PAYMENT_CATS = [1, 2, 3, 4]
 LOC_MIN, LOC_MAX = 1, 265  # PULocationID / DOLocationID 的取值范围
 
-
 def _log_step(tag: str, df: pd.DataFrame):
     print(f"[{tag}] 当前样本量: {len(df)} 行", flush=True)
 
