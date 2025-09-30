@@ -1,0 +1,7 @@
+===============================
+Start experiment at Mon Sep 29 15:35:24 UTC 2025
+Config: batch_size=32, hidden=20, lr=0.005, epochs=200
+[15:35:27] Running experiment with batch_size=32, hidden=20, lr=0.005, epochs=200, glob_interval=200, shuffle=True
+[15:35:43] Data loading time: 15.658 sec
+[15:37:54] Epoch 1: MSELoss=21.080093, Train RMSE=6.298024, Test RMSE=6.291753, Time=131.039 sec
+[15:39:45] Epoch 2: MSELoss=15.417126, Train RMSE=6.379836, Test RMSE=6.372434, Time=111.667 sec

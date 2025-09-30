@@ -15,7 +15,7 @@ import time
 import argparse
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from source.model import Linear, Sequential, Sigmoid, ReLU, RMSELoss 
+from source.model import Linear, Sequential, Sigmoid, ReLU, RMSELoss, MSELoss
 from source.mpi_sgd import SafeSGD, HybridSafeSGD                             
 from source.data import mpi_read_data                                
 from source.mpi_train import global_train, global_rmse                
@@ -40,15 +40,11 @@ def main():
     # -------------------------
     # LOG
     # -------------------------
-    log_dir = os.path.join("results", "ReLU", f"batch_{args.batch_size}")
+    log_dir = os.path.join("resultss", "ReLU", f"batch_{args.batch_size}")
     os.makedirs(log_dir, exist_ok=True)
     summary_file = os.path.join(log_dir, "summary.log")
 
-    if rank == 0:
-        log0_file = os.path.join(log_dir, "log0.log")
-        log0_fh = open(log0_file, "a", buffering=1)
-    
-    else:
+    if rank != 0:
         otherlog_file = os.path.join(log_dir, "otherlog.log")
         otherlog_fh = open(otherlog_file, "a", buffering=1)
         sys.stdout = sys.stderr = otherlog_fh
@@ -71,7 +67,7 @@ def main():
     n_fea = args.n_features
     comm.Barrier()
     t0 = time.time()
-    training, test, ntrain, ntest = mpi_read_data("data/processed/dataall.parquet", n_fea)
+    training, test, ntrain, ntest = mpi_read_data("data/processed/dataall999.parquet", n_fea)
     comm.Barrier()
     t1 = time.time()
     log(f"Data loading time: {t1 - t0:.3f} sec")
@@ -95,7 +91,7 @@ def main():
     )
     
     optimizer = SafeSGD(model.params, lr=args.lr, comm=comm)
-    loss_fn = RMSELoss()
+    loss_fn = MSELoss()
 
     if rank == 0:
         print(f"Initialization Done!")
@@ -113,15 +109,12 @@ def main():
 
         comm.Barrier()
         end_epoch = time.time()
-        log(f"Epoch {epoch+1}: Loss={epoch_loss:.6f}, Train RMSE={train_rmse:.6f}, Test RMSE={test_rmse:.6f}, Time={end_epoch - start_epoch:.3f} sec")
+        log(f"Epoch {epoch+1}: MSELoss={epoch_loss:.6f}, Train RMSE={train_rmse:.6f}, Test RMSE={test_rmse:.6f}, Time={end_epoch - start_epoch:.3f} sec")
         if rank == 0:
-            print(f"Epoch {epoch + 1}: Loss: {epoch_loss:.6f}, Train RMSE: {train_rmse:.6f}, Test RMSE: {test_rmse:.6f}, Time: {end_epoch - start_epoch:.3f} sec")
+            print(f"Epoch {epoch + 1}: MSELoss: {epoch_loss:.6f}, Train RMSE: {train_rmse:.6f}, Test RMSE: {test_rmse:.6f}, Time: {end_epoch - start_epoch:.3f} sec")
 
     if rank == 0:
         print("Training Done!", flush=True)
-        train_rmse = global_rmse(model, X_local, y_local)  
-        test_rmse = global_rmse(model, X_test, y_test)
-        print(f"Final result: Train RMSE: {train_rmse:.6f}, Test RMSE: {test_rmse:.6f}")
 
 if __name__ == "__main__":
     main()
