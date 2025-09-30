@@ -158,11 +158,34 @@ def preprocess_csv(file_path: str,
                 df.loc[:, col] = pd.to_datetime(df[col], format="%m/%d/%Y %I:%M:%S %p", errors='coerce')
 
     # ---------------- 特征工程 ----------------
-    # 时间转数值特征（Unix 秒）；dtype-safe：先转为 datetime64[ns] ndarray，再视图为 int64 纳秒
-    arr_pick = df['tpep_pickup_datetime'].to_numpy(dtype='datetime64[ns]').view('i8')
-    arr_drop = df['tpep_dropoff_datetime'].to_numpy(dtype='datetime64[ns]').view('i8')
-    df['pickup_ts'] = (arr_pick // 10**9).astype('int64')
-    df['dropoff_ts'] = (arr_drop // 10**9).astype('int64')
+    # # 时间转数值特征（Unix 秒）；dtype-safe：先转为 datetime64[ns] ndarray，再视图为 int64 纳秒
+    # arr_pick = df['tpep_pickup_datetime'].to_numpy(dtype='datetime64[ns]').view('i8')
+    # arr_drop = df['tpep_dropoff_datetime'].to_numpy(dtype='datetime64[ns]').view('i8')
+    # df['pickup_ts'] = (arr_pick // 10**9).astype('int64')
+    # df['dropoff_ts'] = (arr_drop // 10**9).astype('int64')
+
+    #分类周期化特征（hour_of_day, day_of_week）
+    # 确保是 datetime64[ns]
+    df['tpep_pickup_datetime']  = pd.to_datetime(df['tpep_pickup_datetime'], errors='coerce')
+    df['tpep_dropoff_datetime'] = pd.to_datetime(df['tpep_dropoff_datetime'], errors='coerce')
+
+    # 直接用 .dt 提取
+    hours  = df['tpep_pickup_datetime'].dt.hour
+    days   = df['tpep_pickup_datetime'].dt.dayofweek   # 0=Mon..6=Sun
+
+    # 周期化
+    df['hour_sin']  = np.sin(2 * np.pi * hours / 24)
+    df['hour_cos']  = np.cos(2 * np.pi * hours / 24)
+    df['day_sin']   = np.sin(2 * np.pi * days / 7)
+    df['day_cos']   = np.cos(2 * np.pi * days / 7)
+
+    # 行程时长（分钟）
+    df['trip_duration_min'] = (
+        (df['tpep_dropoff_datetime'] - df['tpep_pickup_datetime']).dt.total_seconds() / 60.0
+    ).astype('float32')
+
+    # 如存在旧列，安全删除
+    df.drop(columns=['pickup_ts', 'dropoff_ts'], inplace=True, errors='ignore')
 
     # 生成时间戳后，尽早删除原始 datetime 列，降低内存占用
     df = df.drop(columns=['tpep_pickup_datetime', 'tpep_dropoff_datetime'])
@@ -191,7 +214,7 @@ def preprocess_csv(file_path: str,
     print(f"特征处理完成（PULocationID/DOLocationID 作为索引保留，Ratecode/payment 做 one-hot）：当前特征数 {df.shape[1]}", flush=True)
 
     # 数值列归一化（不动 one-hot 列）
-    num_cols = ['passenger_count', 'trip_distance', 'extra', 'pickup_ts', 'dropoff_ts']
+    num_cols = ['passenger_count', 'trip_distance', 'extra', 'trip_duration_min']
     for col in num_cols:
         if col not in df.columns:
             raise KeyError(f"数值列 {col} 缺失，请检查前置步骤。")
@@ -202,7 +225,7 @@ def preprocess_csv(file_path: str,
     # 目标列
     y = df[[TARGET_COL]].astype(np.float32)
 
-    # 组装最终特征矩阵：移除原始 datetime 与目标列
+    # 组装最终特征矩阵：移除与目标列
     drop_cols = [TARGET_COL]
     X = df.drop(columns=drop_cols, errors='ignore').astype(np.float32)
     print(f"清洗后的最终样本量: {len(X)}，特征数: {X.shape[1]}", flush=True)
@@ -235,7 +258,7 @@ def main():
     parser.add_argument(
         '--nrows',
         type=lambda x: None if str(x).lower() == "none" else int(x),
-        default=100_000,
+        default=100_0000,
         help="行数 (int)；传入 None 表示读取整个文件"
     )
     parser.add_argument('--out', type=str, default='data/processed')
