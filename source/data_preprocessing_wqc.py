@@ -258,7 +258,7 @@ def main():
     parser.add_argument(
         '--nrows',
         type=lambda x: None if str(x).lower() == "none" else int(x),
-        default=100_0000,
+        default=100_000,
         help="行数 (int)；传入 None 表示读取整个文件"
     )
     parser.add_argument('--out', type=str, default='data/processed')
