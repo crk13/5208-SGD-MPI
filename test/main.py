@@ -15,7 +15,7 @@ import time
 import argparse
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from source.model import Linear, Sequential, Sigmoid, ReLU, RMSELoss, MSELoss
+from source.model import Linear, Sequential, Sigmoid, ReLU, Tanh, RMSELoss, MSELoss
 from source.mpi_sgd import SafeSGD, HybridSafeSGD                             
 from source.data import mpi_read_data                                
 from source.mpi_train import global_train, global_rmse                
@@ -28,6 +28,7 @@ def main():
 
     parser = argparse.ArgumentParser(description="MPI Training Script")
     parser.add_argument("--n_features", type=int, default=17)
+    parser.add_argument("--act", type=str, default="relu", choices=["relu", "tanh", "sigmoid"])
     parser.add_argument("--hidden", type=int, default=60)
     parser.add_argument("--lr", type=float, default=0.01)
     parser.add_argument("--batch_size", type=int, default=64)
@@ -37,40 +38,14 @@ def main():
                         help="跨机器全局同步间隔（按 batch 计）")
     args = parser.parse_args()
 
-    # -------------------------
-    # LOG
-    # -------------------------
-    log_dir = os.path.join("resultss", "ReLU", f"batch_{args.batch_size}")
-    os.makedirs(log_dir, exist_ok=True)
-    summary_file = os.path.join(log_dir, "summary.log")
 
-    if rank != 0:
-        otherlog_file = os.path.join(log_dir, "otherlog.log")
-        otherlog_fh = open(otherlog_file, "a", buffering=1)
-        sys.stdout = sys.stderr = otherlog_fh
-
-    def log(msg):
-        """统一 summary 日志"""
-        if rank == 0:
-            with open(summary_file, "a", buffering=1) as f:
-                f.write(f"[{time.strftime('%H:%M:%S')}] {msg}\n")
-            print(f"[Summary] {msg}", flush=True)
-
-    log(f"Running experiment with batch_size={args.batch_size}, hidden={args.hidden}, "
-        f"lr={args.lr}, epochs={args.epochs}, glob_interval={args.glob_interval}, shuffle={args.shuffle}")
-
-
-
-    # -------------------------
-    # LOAD DATA
-    # -------------------------
+    # -------------------------LOAD DATA-------------------------
     n_fea = args.n_features
     comm.Barrier()
     t0 = time.time()
     training, test, ntrain, ntest = mpi_read_data("data/processed/dataall999.parquet", n_fea)
     comm.Barrier()
     t1 = time.time()
-    log(f"Data loading time: {t1 - t0:.3f} sec")
     if rank == 0:
         print(f"[Timing] Data loading time: {t1 - t0:.3f} sec")
     print(f"Loading Done! [Rank {rank}] Finished loading data. Local training samples shape: {training.shape}, test samples shape: {test.shape}")
@@ -80,13 +55,19 @@ def main():
     X_test = test[:, :-1]
     y_test = test[:, -1].reshape(-1, 1)
 
-    # -------------------------
-    # INITIALIZE
-    # -------------------------
+
+    # -------------------------INITIALIZE-------------------------
     np.random.seed(42 + rank)
+    ACT_MAP = {
+        "relu": ReLU,
+        "tanh": Tanh,
+        "sigmoid": Sigmoid
+    }
+    act_cls = ACT_MAP[args.act]
+
     model = Sequential(
         Linear(n_fea, args.hidden),
-        ReLU(),
+        act_cls(),
         Linear(args.hidden, 1)
     )
     
@@ -96,9 +77,8 @@ def main():
     if rank == 0:
         print(f"Initialization Done!")
 
-    # -------------------------
-    # TRAIN
-    # -------------------------
+
+    # -------------------------TRAIN-------------------------
     for epoch in range(args.epochs):
         comm.Barrier()
         start_epoch = time.time()
@@ -109,7 +89,6 @@ def main():
 
         comm.Barrier()
         end_epoch = time.time()
-        log(f"Epoch {epoch+1}: MSELoss={epoch_loss:.6f}, Train RMSE={train_rmse:.6f}, Test RMSE={test_rmse:.6f}, Time={end_epoch - start_epoch:.3f} sec")
         if rank == 0:
             print(f"Epoch {epoch + 1}: MSELoss: {epoch_loss:.6f}, Train RMSE: {train_rmse:.6f}, Test RMSE: {test_rmse:.6f}, Time: {end_epoch - start_epoch:.3f} sec")
 

@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
 from tqdm import tqdm
+import sys
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
@@ -23,7 +24,7 @@ def mpi_read_data(file, n_feature, max_req = 8):
         pf = pq.ParquetFile(file)
 
         print(f"[Rank {rank}] Start reading parquet file {file}, total row groups = {pf.num_row_groups}")
-        for i in tqdm(range(pf.num_row_groups), disable=(rank!=0)):
+        for i in tqdm(range(pf.num_row_groups), disable=(rank!=0), file=sys.stderr):
             table = pf.read_row_group(i)
             # mpi4py 的 Send/Isend 只能发送连续内存的数组，比如 numpy.ndarray
             # 数值型矩阵/数组可以直接发，普通 Python 对象需要先序列化：转成 numpy array 或者用 pickle 序列化成字节流再发送

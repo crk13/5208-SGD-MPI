@@ -515,3 +515,121 @@ Config: batch_size=128, hidden=20, lr=0.005, epochs=200
 [11:45:11] Epoch 199: MSELoss=9.961564, Train RMSE=4.490124, Test RMSE=4.510249, Time=28.156 sec
 [11:45:39] Epoch 200: MSELoss=9.963232, Train RMSE=4.487180, Test RMSE=4.507742, Time=27.540 sec
 
+===============================
+Start experiment at Thu Oct  2 04:01:02 UTC 2025
+Config: batch_size=128, hidden=20, lr=0.005, epochs=160
+[04:01:05] Running experiment with batch_size=128, hidden=20, lr=0.005, epochs=160, glob_interval=200, shuffle=True
+===============================
+Start experiment at Thu Oct  2 04:02:28 UTC 2025
+Config: batch_size=128, hidden=20, lr=0.005, epochs=160
+[04:02:29] Running experiment with batch_size=128, hidden=20, lr=0.005, epochs=160, glob_interval=200, shuffle=True
+===============================
+Start experiment at Thu Oct  2 04:04:17 UTC 2025
+Config: batch_size=128, hidden=20, lr=0.005, epochs=160
+[04:04:19] Running experiment with batch_size=128, hidden=20, lr=0.005, epochs=160, glob_interval=200, shuffle=True
+[04:04:34] Data loading time: 14.975 sec
+[04:05:14] Epoch 1: MSELoss=25.220173, Train RMSE=6.814638, Test RMSE=6.817091, Time=40.657 sec
+[04:05:53] Epoch 2: MSELoss=21.756008, Train RMSE=6.484133, Test RMSE=6.485579, Time=38.312 sec
+[04:06:29] Epoch 3: MSELoss=19.763522, Train RMSE=6.234504, Test RMSE=6.235150, Time=36.637 sec
+[04:07:01] Epoch 4: MSELoss=18.385211, Train RMSE=6.048640, Test RMSE=6.049002, Time=31.714 sec
+[04:07:36] Epoch 5: MSELoss=17.429070, Train RMSE=5.906390, Test RMSE=5.906277, Time=34.587 sec
+[04:08:13] Epoch 6: MSELoss=16.737404, Train RMSE=5.799743, Test RMSE=5.798994, Time=37.269 sec
+[04:08:50] Epoch 7: MSELoss=16.211237, Train RMSE=5.718602, Test RMSE=5.717403, Time=36.963 sec
+[04:09:26] Epoch 8: MSELoss=15.796315, Train RMSE=5.651360, Test RMSE=5.649925, Time=36.261 sec
+[04:10:04] Epoch 9: MSELoss=15.448938, Train RMSE=5.588645, Test RMSE=5.587020, Time=37.274 sec
+[04:10:44] Epoch 10: MSELoss=15.152649, Train RMSE=5.536110, Test RMSE=5.534026, Time=40.019 sec
+[04:11:20] Epoch 11: MSELoss=14.883833, Train RMSE=5.494173, Test RMSE=5.492086, Time=36.559 sec
+[04:12:18] Epoch 12: MSELoss=14.647629, Train RMSE=5.449919, Test RMSE=5.447610, Time=57.870 sec
+[04:13:03] Epoch 13: MSELoss=14.436356, Train RMSE=5.414535, Test RMSE=5.411968, Time=44.814 sec
+[04:13:34] Epoch 14: MSELoss=14.257087, Train RMSE=5.375300, Test RMSE=5.372589, Time=31.219 sec
+[04:14:05] Epoch 15: MSELoss=14.078300, Train RMSE=5.342333, Test RMSE=5.339272, Time=30.400 sec
+[04:14:36] Epoch 16: MSELoss=13.909832, Train RMSE=5.318360, Test RMSE=5.315481, Time=31.067 sec
+[04:15:14] Epoch 17: MSELoss=13.766129, Train RMSE=5.288309, Test RMSE=5.285358, Time=38.766 sec
+[04:15:46] Epoch 18: MSELoss=13.621400, Train RMSE=5.266941, Test RMSE=5.264220, Time=31.449 sec
+[04:16:15] Epoch 19: MSELoss=13.493183, Train RMSE=5.243162, Test RMSE=5.240518, Time=29.198 sec
+[04:16:47] Epoch 20: MSELoss=13.363498, Train RMSE=5.226319, Test RMSE=5.224054, Time=32.101 sec
+[04:17:22] Epoch 21: MSELoss=13.246462, Train RMSE=5.213106, Test RMSE=5.211056, Time=34.760 sec
+[04:17:50] Epoch 22: MSELoss=13.154783, Train RMSE=5.185761, Test RMSE=5.183737, Time=28.411 sec
+[04:18:19] Epoch 23: MSELoss=13.045893, Train RMSE=5.173337, Test RMSE=5.171285, Time=28.606 sec
+[04:18:55] Epoch 24: MSELoss=12.955072, Train RMSE=5.151178, Test RMSE=5.149442, Time=35.896 sec
+[04:19:30] Epoch 25: MSELoss=12.848125, Train RMSE=5.143175, Test RMSE=5.141982, Time=35.263 sec
+[04:20:06] Epoch 26: MSELoss=12.772513, Train RMSE=5.122692, Test RMSE=5.121504, Time=36.061 sec
+[04:20:41] Epoch 27: MSELoss=12.681755, Train RMSE=5.111206, Test RMSE=5.110256, Time=35.009 sec
+[04:21:16] Epoch 28: MSELoss=12.602683, Train RMSE=5.107274, Test RMSE=5.106746, Time=35.146 sec
+[04:21:52] Epoch 29: MSELoss=12.534075, Train RMSE=5.080465, Test RMSE=5.080247, Time=35.288 sec
+[04:22:51] Epoch 30: MSELoss=12.457803, Train RMSE=5.071614, Test RMSE=5.071613, Time=59.344 sec
+[04:23:25] Epoch 31: MSELoss=12.388767, Train RMSE=5.056383, Test RMSE=5.056852, Time=34.201 sec
+[04:24:00] Epoch 32: MSELoss=12.317797, Train RMSE=5.052799, Test RMSE=5.053456, Time=34.226 sec
+[04:24:34] Epoch 33: MSELoss=12.252555, Train RMSE=5.042307, Test RMSE=5.043498, Time=34.670 sec
+[04:25:10] Epoch 34: MSELoss=12.189723, Train RMSE=5.028954, Test RMSE=5.030438, Time=35.980 sec
+[04:25:47] Epoch 35: MSELoss=12.127673, Train RMSE=5.021050, Test RMSE=5.022876, Time=36.885 sec
+[04:26:24] Epoch 36: MSELoss=12.081100, Train RMSE=5.002165, Test RMSE=5.004383, Time=36.475 sec
+[04:26:54] Epoch 37: MSELoss=12.013979, Train RMSE=4.991046, Test RMSE=4.993799, Time=30.494 sec
+[04:27:22] Epoch 38: MSELoss=11.940835, Train RMSE=4.994051, Test RMSE=4.997022, Time=28.194 sec
+[04:27:49] Epoch 39: MSELoss=11.893706, Train RMSE=4.970844, Test RMSE=4.974551, Time=26.288 sec
+[04:28:15] Epoch 40: MSELoss=11.833854, Train RMSE=4.957632, Test RMSE=4.961897, Time=26.773 sec
+[04:28:42] Epoch 41: MSELoss=11.774034, Train RMSE=4.952016, Test RMSE=4.956912, Time=26.617 sec
+[04:29:08] Epoch 42: MSELoss=11.713744, Train RMSE=4.949974, Test RMSE=4.955123, Time=25.847 sec
+[04:29:34] Epoch 43: MSELoss=11.649079, Train RMSE=4.945446, Test RMSE=4.951285, Time=26.302 sec
+[04:30:01] Epoch 44: MSELoss=11.602627, Train RMSE=4.928616, Test RMSE=4.935007, Time=26.502 sec
+[04:30:28] Epoch 45: MSELoss=11.545283, Train RMSE=4.916524, Test RMSE=4.923597, Time=27.680 sec
+[04:30:55] Epoch 46: MSELoss=11.479040, Train RMSE=4.922167, Test RMSE=4.929939, Time=26.931 sec
+[04:31:22] Epoch 47: MSELoss=11.443552, Train RMSE=4.898551, Test RMSE=4.906728, Time=27.090 sec
+[04:31:49] Epoch 48: MSELoss=11.384481, Train RMSE=4.898578, Test RMSE=4.907116, Time=27.091 sec
+[04:32:17] Epoch 49: MSELoss=11.337394, Train RMSE=4.876697, Test RMSE=4.886206, Time=27.491 sec
+[04:32:59] Epoch 50: MSELoss=11.297142, Train RMSE=4.855952, Test RMSE=4.866072, Time=42.288 sec
+[04:33:32] Epoch 51: MSELoss=11.234845, Train RMSE=4.868459, Test RMSE=4.878843, Time=33.043 sec
+[04:33:58] Epoch 52: MSELoss=11.195001, Train RMSE=4.857135, Test RMSE=4.868272, Time=25.952 sec
+[04:34:24] Epoch 53: MSELoss=11.147754, Train RMSE=4.847371, Test RMSE=4.859091, Time=25.965 sec
+[04:34:51] Epoch 54: MSELoss=11.104245, Train RMSE=4.841480, Test RMSE=4.853929, Time=27.166 sec
+[04:35:18] Epoch 55: MSELoss=11.062306, Train RMSE=4.833308, Test RMSE=4.846992, Time=26.325 sec
+[04:35:44] Epoch 56: MSELoss=11.031166, Train RMSE=4.816552, Test RMSE=4.830659, Time=26.135 sec
+[04:36:10] Epoch 57: MSELoss=10.970001, Train RMSE=4.829947, Test RMSE=4.844415, Time=25.589 sec
+[04:36:36] Epoch 58: MSELoss=10.927047, Train RMSE=4.846261, Test RMSE=4.860938, Time=26.142 sec
+[04:37:02] Epoch 59: MSELoss=10.891212, Train RMSE=4.832947, Test RMSE=4.848318, Time=26.226 sec
+[04:37:29] Epoch 60: MSELoss=10.858381, Train RMSE=4.827496, Test RMSE=4.844013, Time=26.758 sec
+[04:37:55] Epoch 61: MSELoss=10.829324, Train RMSE=4.811476, Test RMSE=4.828779, Time=26.461 sec
+[04:38:23] Epoch 62: MSELoss=10.794404, Train RMSE=4.789502, Test RMSE=4.807500, Time=27.658 sec
+[04:38:50] Epoch 63: MSELoss=10.745720, Train RMSE=4.812373, Test RMSE=4.831140, Time=26.854 sec
+[04:39:16] Epoch 64: MSELoss=10.739579, Train RMSE=4.772244, Test RMSE=4.792169, Time=26.648 sec
+[04:39:44] Epoch 65: MSELoss=10.682625, Train RMSE=4.796604, Test RMSE=4.816777, Time=27.643 sec
+[04:40:11] Epoch 66: MSELoss=10.666997, Train RMSE=4.776566, Test RMSE=4.797938, Time=26.612 sec
+[04:40:37] Epoch 67: MSELoss=10.634824, Train RMSE=4.752503, Test RMSE=4.774906, Time=26.531 sec
+[04:41:05] Epoch 68: MSELoss=10.594915, Train RMSE=4.774091, Test RMSE=4.796518, Time=27.305 sec
+[04:41:34] Epoch 69: MSELoss=10.548166, Train RMSE=4.792547, Test RMSE=4.815591, Time=29.300 sec
+[04:42:06] Epoch 70: MSELoss=10.535552, Train RMSE=4.794544, Test RMSE=4.818623, Time=32.573 sec
+[04:42:35] Epoch 71: MSELoss=10.517333, Train RMSE=4.760469, Test RMSE=4.785788, Time=28.332 sec
+[04:43:02] Epoch 72: MSELoss=10.464387, Train RMSE=4.788060, Test RMSE=4.814336, Time=27.388 sec
+[04:43:54] Epoch 73: MSELoss=10.442650, Train RMSE=4.798202, Test RMSE=4.824381, Time=51.933 sec
+[04:44:28] Epoch 74: MSELoss=10.404110, Train RMSE=4.825957, Test RMSE=4.851841, Time=34.377 sec
+[04:45:05] Epoch 75: MSELoss=10.421646, Train RMSE=4.733282, Test RMSE=4.761907, Time=36.093 sec
+[04:45:42] Epoch 76: MSELoss=10.370495, Train RMSE=4.752077, Test RMSE=4.781614, Time=37.818 sec
+[04:46:21] Epoch 77: MSELoss=10.344518, Train RMSE=4.765963, Test RMSE=4.796376, Time=38.486 sec
+[04:47:01] Epoch 78: MSELoss=10.344425, Train RMSE=4.713318, Test RMSE=4.745614, Time=39.683 sec
+[04:47:32] Epoch 79: MSELoss=10.281041, Train RMSE=4.781755, Test RMSE=4.813094, Time=31.245 sec
+[04:47:58] Epoch 80: MSELoss=10.280275, Train RMSE=4.755740, Test RMSE=4.788944, Time=25.631 sec
+[04:48:37] Epoch 81: MSELoss=10.249107, Train RMSE=4.755060, Test RMSE=4.789263, Time=39.186 sec
+[04:49:16] Epoch 82: MSELoss=10.205400, Train RMSE=4.766794, Test RMSE=4.801151, Time=39.421 sec
+[04:49:56] Epoch 83: MSELoss=10.174406, Train RMSE=4.768979, Test RMSE=4.803189, Time=39.862 sec
+[04:50:36] Epoch 84: MSELoss=10.175743, Train RMSE=4.734726, Test RMSE=4.770866, Time=39.900 sec
+[04:51:16] Epoch 85: MSELoss=10.152170, Train RMSE=4.729470, Test RMSE=4.767222, Time=39.747 sec
+[04:51:55] Epoch 86: MSELoss=10.090108, Train RMSE=4.738708, Test RMSE=4.776061, Time=39.685 sec
+[04:52:35] Epoch 87: MSELoss=10.108269, Train RMSE=4.721972, Test RMSE=4.761697, Time=39.574 sec
+[04:53:13] Epoch 88: MSELoss=10.063167, Train RMSE=4.748631, Test RMSE=4.788688, Time=38.320 sec
+[04:54:09] Epoch 89: MSELoss=10.027485, Train RMSE=4.733897, Test RMSE=4.774577, Time=55.565 sec
+[04:54:42] Epoch 90: MSELoss=10.024294, Train RMSE=4.759596, Test RMSE=4.800473, Time=33.330 sec
+[04:55:16] Epoch 91: MSELoss=9.996178, Train RMSE=4.753236, Test RMSE=4.794992, Time=33.533 sec
+[04:55:49] Epoch 92: MSELoss=10.002470, Train RMSE=4.706747, Test RMSE=4.751077, Time=33.218 sec
+[04:56:22] Epoch 93: MSELoss=9.954577, Train RMSE=4.745934, Test RMSE=4.789964, Time=33.051 sec
+[04:56:55] Epoch 94: MSELoss=9.964052, Train RMSE=4.701152, Test RMSE=4.748911, Time=33.117 sec
+[04:57:28] Epoch 95: MSELoss=9.923098, Train RMSE=4.718903, Test RMSE=4.766459, Time=33.165 sec
+[04:58:00] Epoch 96: MSELoss=9.915933, Train RMSE=4.697188, Test RMSE=4.745618, Time=31.621 sec
+[04:58:32] Epoch 97: MSELoss=9.883663, Train RMSE=4.725616, Test RMSE=4.775058, Time=32.201 sec
+[04:59:05] Epoch 98: MSELoss=9.848312, Train RMSE=4.745767, Test RMSE=4.794429, Time=32.743 sec
+[04:59:37] Epoch 99: MSELoss=9.856839, Train RMSE=4.714773, Test RMSE=4.764961, Time=32.152 sec
+[05:00:10] Epoch 100: MSELoss=9.816058, Train RMSE=4.766409, Test RMSE=4.817015, Time=32.781 sec
+[05:00:51] Epoch 101: MSELoss=9.801283, Train RMSE=4.772120, Test RMSE=4.823318, Time=41.030 sec
+[05:01:28] Epoch 102: MSELoss=9.810116, Train RMSE=4.696432, Test RMSE=4.751947, Time=36.917 sec
+[05:01:57] Epoch 103: MSELoss=9.782687, Train RMSE=4.706512, Test RMSE=4.762456, Time=28.773 sec
+[05:02:24] Epoch 104: MSELoss=9.761227, Train RMSE=4.696311, Test RMSE=4.752975, Time=27.432 sec
+[05:02:52] Epoch 105: MSELoss=9.745073, Train RMSE=4.718046, Test RMSE=4.775447, Time=28.179 sec

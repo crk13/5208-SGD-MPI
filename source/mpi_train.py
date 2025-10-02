@@ -2,6 +2,7 @@ import numpy as np
 from mpi4py import MPI
 from source.model import MSELoss
 from tqdm import tqdm
+import sys
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
@@ -27,7 +28,7 @@ def global_train(model, optim, X, y, lossfn=None, batch_size=32, shuffle=True, g
         X = X[idx]
         y = y[idx]
 
-    for i in tqdm(range(0, max_local_size, batch_size), disable=(rank!=0)):
+    for i in tqdm(range(0, max_local_size, batch_size), disable=(rank!=0), file=sys.stderr):
         start = i
         end = min(i + batch_size, local_size)
 
@@ -68,13 +69,19 @@ def global_train(model, optim, X, y, lossfn=None, batch_size=32, shuffle=True, g
         # if i // batch_size % 10000 == 0:
         #     print(f"{rank}: [Batch {i//batch_size}] Loss = {loss_val: .4f}")
     
+    # # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    # # FOR RMSE LOSS ONLY
+    # # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    # total_sse = comm.allreduce(local_sse, MPI.SUM)
+    # total_n = comm.allreduce(local_n, MPI.SUM)
+    # return np.sqrt(total_sse / max(total_n, 1))
+        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    
+    # FOR MSE LOSS ONLY
     # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    # FOR RMSE LOSS ONLY
-    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
     total_sse = comm.allreduce(local_sse, MPI.SUM)
     total_n = comm.allreduce(local_n, MPI.SUM)
-    return np.sqrt(total_sse / max(total_n, 1))
+    return 0.5 * total_sse / max(total_n, 1)
 
 
 def global_rmse(model, X, y, comm=comm):
