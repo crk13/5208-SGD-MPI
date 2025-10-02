@@ -1,48 +1,49 @@
 #!/bin/bash
 set -e
 
-EPOCHS=160
-ACT="relu"
-HIDDEN=20
-LR=0.005
-BATCH_SIZES=(128)
-NPROCS=12
-HOSTFILE=hostfile
 PYTHON=/home/76836/miniconda3/envs/mpi/bin/python
+HOSTFILE=hostfile
+NPROCS=16
 
-MODE="WLAN"   
-NET_IFACE=$(ip route | awk '/default/ {print $5}')
-if [ "$MODE" = "WLAN" ]; then
-    echo "Simulating WLAN: 50ms delay, 20Mbps bandwidth"
-    sudo tc qdisc add dev $NET_IFACE root netem delay 50ms rate 20mbit
-fi
+LR=0.005
 
-RESULTS_DIR=resultsss
+BATCH_SIZES=(512 256 128 64 32)
+EPOCHS_LIST=(350 300 250 200 150)  
+HIDDENS=(80 60 40 20)
+ACTS=(relu tanh sigmoid)
+SGDS=(adam sgd)
+
+RESULTS_DIR=logs
 mkdir -p $RESULTS_DIR
 
-for BATCH in "${BATCH_SIZES[@]}"; do
-    EXP_DIR=$RESULTS_DIR/${ACT}
-    mkdir -p $EXP_DIR
-    
-    echo "===============================" | tee -a $EXP_DIR/summary.log
-    echo "Start experiment" | tee -a $EXP_DIR/summary.log
-    echo "Config: batch_size=$BATCH, hidden=$HIDDEN, lr=$LR, epochs=$EPOCHS" | tee -a $EXP_DIR/summary.log
-    
-    /usr/bin/mpirun -np $NPROCS --hostfile $HOSTFILE \
-        $PYTHON test/main.py \
-        --n_features 19 \
-        --act $ACT \
-        --hidden $HIDDEN \
-        --lr $LR \
-        --batch_size $BATCH \
-        --epochs $EPOCHS \
-        --shuffle \
-        --glob_interval 200
-    
-    echo "" | tee -a $EXP_DIR/summary.log
-done
+for SGD in "${SGDS[@]}"; do
+  for ACT in "${ACTS[@]}"; do
+    for HIDDEN in "${HIDDENS[@]}"; do
+      LOG_DIR=$RESULTS_DIR/$SGD
+      mkdir -p $LOG_DIR
+      LOG_FILE=$LOG_DIR/$ACT.log
 
-if [ "$MODE" = "WLAN" ]; then
-    echo "[INFO] Clearing network limits"
-    sudo tc qdisc del dev $NET_IFACE root
-fi
+      for i in "${!BATCH_SIZES[@]}"; do
+        BATCH=${BATCH_SIZES[$i]}
+        EPOCHS=${EPOCHS_LIST[$i]}
+
+        echo "===============================" | tee -a $LOG_FILE
+        echo "Start experiment" | tee -a $LOG_FILE
+        echo "Config: SGD=$SGD, act=$ACT, hidden=$HIDDEN, batch_size=$BATCH, lr=$LR, epochs=$EPOCHS" | tee -a $LOG_FILE
+
+        /usr/bin/mpirun -np $NPROCS --hostfile $HOSTFILE \
+          $PYTHON test/main.py \
+          --n_features 21 \
+          --hidden $HIDDEN \
+          --lr $LR \
+          --batch_size $BATCH \
+          --epochs $EPOCHS \
+          --act $ACT \
+          --sgd $SGD \
+          --glob_interval 200 \
+          --shuffle
+
+      done
+    done
+  done
+done

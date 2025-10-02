@@ -27,9 +27,6 @@ class Linear:
     def backward(self, dLdy):
         self.W.grad += self.x.T @ dLdy
         self.b.grad += np.sum(dLdy, axis=0)
-        #  # 直接覆盖梯度，而不是累积？？？
-        # self.W.grad = self.x.T @ dLdy
-        # self.b.grad = dLdy.sum(axis=0, keepdims=True)
         return dLdy @ self.W.val.T
 
 class Embedding:
