@@ -11,6 +11,8 @@ import pandas as pd
 import time
 from sklearn.preprocessing import MinMaxScaler
 from pandas.api.types import CategoricalDtype
+from scipy import sparse
+from typing import Dict
 
 
 # ------------------------
@@ -35,6 +37,144 @@ TARGET_COL = 'total_amount'
 RATECODE_CATS = [1, 2, 3, 4, 5, 6, 99]
 PAYMENT_CATS = [1, 2, 3, 4]
 LOC_MIN, LOC_MAX = 1, 265  # PULocationID / DOLocationID 的取值范围
+
+class AdaptiveHashBinner:
+    """
+    按类别频次自适应分桶（高频更细=每桶装更少类别，低频更粗）。
+    - n_buckets: 最终桶数（含 unknown 桶）
+    - dense_group_size: 高频区每桶容纳的类别数（越小越“细”）
+    - sparse_group_size: 低频区每桶容纳的类别数（越大越“粗”）
+    - use_signed: 是否用带符号哈希（+1/-1），减少碰撞偏向
+    """
+    def __init__(
+        self,
+        n_buckets: int = 20,
+        dense_group_size: int = 10,
+        sparse_group_size: int = 30,
+        use_signed: bool = True,
+        random_seed: int = 17,
+        reserve_unknown: bool = True
+    ):
+        assert n_buckets >= 2, "n_buckets 至少为 2"
+        self.n_buckets = n_buckets
+        self.dense_group_size = dense_group_size
+        self.sparse_group_size = sparse_group_size
+        self.use_signed = use_signed
+        self.random_seed = random_seed
+        self.reserve_unknown = reserve_unknown
+
+        self.bucket_map_: Dict[str, int] = {}
+        self.unknown_bucket_: int = n_buckets - 1 if reserve_unknown else None
+        self.info_: Dict[str, int] = {}  # 记录分桶信息
+
+    @staticmethod
+    def _signed_hash(x: str, seed: int) -> int:
+        # Python 内置 hash 与进程相关，这里基于 tuple 固定化；仅用于符号，非索引
+        h = hash((x, seed))
+        return 1 if (h & (1 << 31)) == 0 else -1
+
+    def fit(self, s: pd.Series):
+        """根据频次把类别映射到 bucket_id。"""
+        s = s.astype(str)
+        vc = s.value_counts(dropna=False)  # 包含 'nan' 字符串
+        cats = vc.index.tolist()
+        n_unique = len(cats)
+
+        # 预留 unknown 桶
+        total_buckets = self.n_buckets - (1 if self.reserve_unknown else 0)
+        if total_buckets <= 0:
+            raise ValueError("桶数太少，无法预留 unknown。")
+
+        # 计算应给“高频区”的桶数 k，使得：k*dense + (total_buckets-k)*sparse >= n_unique
+        k_best = 0
+        for k in range(total_buckets, -1, -1):  # 尽量多给高频
+            cap = k * self.dense_group_size + (total_buckets - k) * self.sparse_group_size
+            if cap >= n_unique:
+                k_best = k
+                break
+        # 如果仍不足，则把 sparse_group_size 动态放大到刚好能容纳
+        if k_best == 0:
+            # 最小需要的 sparse 容量
+            need = int(np.ceil(n_unique / total_buckets))
+            if need > self.sparse_group_size:
+                self.sparse_group_size = need
+
+        k = k_best
+        # 分配桶区间： [0 .. total_buckets-1] 用于已知类别；unknown（若有）用最后一个
+        known_bucket_ids = list(range(total_buckets))
+
+        # 把类别按频次顺序装桶
+        ptr = 0
+        bucket_idx = 0
+        # 先装高频区（k 个桶，每桶 dense_group_size 类）
+        for _ in range(k):
+            cap = self.dense_group_size
+            for _ in range(cap):
+                if ptr >= n_unique: break
+                cat = cats[ptr]
+                self.bucket_map_[cat] = known_bucket_ids[bucket_idx]
+                ptr += 1
+            bucket_idx += 1
+        # 再装低频区（剩余桶，每桶 sparse_group_size 类）
+        while bucket_idx < total_buckets and ptr < n_unique:
+            cap = self.sparse_group_size
+            for _ in range(cap):
+                if ptr >= n_unique: break
+                cat = cats[ptr]
+                self.bucket_map_[cat] = known_bucket_ids[bucket_idx]
+                ptr += 1
+            bucket_idx += 1
+
+        # 若还有没装完（极端情况），直接循环塞最后一个已知桶
+        while ptr < n_unique:
+            self.bucket_map_[cats[ptr]] = known_bucket_ids[-1]
+            ptr += 1
+
+        # 记录信息
+        self.info_ = {
+            "n_unique": n_unique,
+            "n_buckets_effective": total_buckets,
+            "dense_buckets": k,
+            "dense_group_size": self.dense_group_size,
+            "sparse_buckets": total_buckets - k,
+            "sparse_group_size": self.sparse_group_size,
+            "has_unknown": int(self.reserve_unknown),
+            "unknown_bucket": self.unknown_bucket_ if self.reserve_unknown else -1
+        }
+        return self
+
+    def transform(self, s: pd.Series) -> sparse.csr_matrix:
+        """把类别列转为 (n_samples, n_buckets) 的 CSR 稀疏矩阵（值= +1/-1）。"""
+        if not self.bucket_map_:
+            raise RuntimeError("请先 fit。")
+        s = s.astype(str)
+        n = len(s)
+        rows, cols, data = [], [], []
+        for i, val in enumerate(s.values):
+            if val in self.bucket_map_:
+                j = self.bucket_map_[val]
+            else:
+                if self.reserve_unknown:
+                    j = self.unknown_bucket_
+                else:
+                    # 无 unknown 桶时，回退到 hash 到已知桶（更均衡）
+                    j = hash((val, self.random_seed)) % self.n_buckets
+            sign = self._signed_hash(val, self.random_seed) if self.use_signed else 1.0
+            rows.append(i); cols.append(j); data.append(sign)
+        X = sparse.csr_matrix((data, (rows, cols)), shape=(n, self.n_buckets), dtype=np.float32)
+        return X
+
+    def fit_transform(self, s: pd.Series) -> sparse.csr_matrix:
+        return self.fit(s).transform(s)
+
+    def get_bucket_map(self) -> Dict[str, int]:
+        """返回 类别->桶 的映射字典。"""
+        return dict(self.bucket_map_)
+
+    def get_info(self) -> Dict[str, int]:
+        """返回分桶配置与统计。"""
+        return dict(self.info__)
+
 
 def _log_step(tag: str, df: pd.DataFrame):
     print(f"[{tag}] 当前样本量: {len(df)} 行", flush=True)
@@ -195,14 +335,16 @@ def preprocess_csv(file_path: str,
     df['RatecodeID'] = df['RatecodeID'].astype(CategoricalDtype(categories=RATECODE_CATS, ordered=False))
     df['payment_type'] = df['payment_type'].astype(CategoricalDtype(categories=PAYMENT_CATS, ordered=False))
 
-    # 站点 ID：转为整数索引，超范围/缺失记为 0（留作 "unknown/pad"）
-    df['PULocationID'] = pd.to_numeric(df['PULocationID'], errors='coerce')
-    df['DOLocationID'] = pd.to_numeric(df['DOLocationID'], errors='coerce')
-    df.loc[~df['PULocationID'].between(LOC_MIN, LOC_MAX), 'PULocationID'] = np.nan
-    df.loc[~df['DOLocationID'].between(LOC_MIN, LOC_MAX), 'DOLocationID'] = np.nan
-    # 映射到 [0..265]：0=unknown，1..265 为真实 ID
-    df['PULocationID'] = df['PULocationID'].fillna(0).astype('int32')
-    df['DOLocationID'] = df['DOLocationID'].fillna(0).astype('int32')
+
+    # 不做emdedding就没必要了
+    # # 站点 ID：转为整数索引，超范围/缺失记为 0（留作 "unknown/pad"）
+    # df['PULocationID'] = pd.to_numeric(df['PULocationID'], errors='coerce')
+    # df['DOLocationID'] = pd.to_numeric(df['DOLocationID'], errors='coerce')
+    # df.loc[~df['PULocationID'].between(LOC_MIN, LOC_MAX), 'PULocationID'] = np.nan
+    # df.loc[~df['DOLocationID'].between(LOC_MIN, LOC_MAX), 'DOLocationID'] = np.nan
+    # # 映射到 [0..265]：0=unknown，1..265 为真实 ID
+    # df['PULocationID'] = df['PULocationID'].fillna(0).astype('int32')
+    # df['DOLocationID'] = df['DOLocationID'].fillna(0).astype('int32')
 
     # 仅对 RatecodeID / payment_type 做 one-hot
     df = pd.get_dummies(
@@ -211,7 +353,33 @@ def preprocess_csv(file_path: str,
         prefix=['Ratecode', 'paytype'],
         dummy_na=False
     )
-    print(f"特征处理完成（PULocationID/DOLocationID 作为索引保留，Ratecode/payment 做 one-hot）：当前特征数 {df.shape[1]}", flush=True)
+    print(f"（PULocationID/DOLocationID 暂时保留，Ratecode/payment 做 one-hot）：当前特征数 {df.shape[1]}", flush=True)
+
+    # 对'PUL'，'DOL'做类别型分桶（按频次自适应分桶，见 AdaptiveHashBinner）
+    binner = AdaptiveHashBinner(
+        n_buckets=20,           # 最终 20 桶（含 unknown）
+        dense_group_size=10,    # 高频：10 类/桶
+        sparse_group_size=30,   # 低频：30 类/桶
+        use_signed=True,        # 带符号哈希，建议开
+        reserve_unknown=True    # 预留 unknown 桶（最后一个）
+    )
+    # ✅ 改成字符串 + NaN 替换
+    df['PULocationID'] = df['PULocationID'].fillna('__UNK__').astype(str)
+    df['DOLocationID'] = df['DOLocationID'].fillna('__UNK__').astype(str)
+
+    # 使用 AdaptiveHashBinner 转换成稀疏特征矩阵
+    X_pu = binner.fit_transform(df['PULocationID'])
+    X_do = binner.fit_transform(df['DOLocationID'])
+
+    # 转回 DataFrame 并拼接
+    pu_cols = [f'PULoc_bin_{i}' for i in range(binner.n_buckets)]
+    do_cols = [f'DOLoc_bin_{i}' for i in range(binner.n_buckets)]
+    df_pu = pd.DataFrame.sparse.from_spmatrix(X_pu, columns=pu_cols, index=df.index)
+    df_do = pd.DataFrame.sparse.from_spmatrix(X_do, columns=do_cols, index=df.index)
+    df = pd.concat([df, df_pu, df_do], axis=1)
+    # 删除原始列
+    df = df.drop(columns=['PULocationID', 'DOLocationID'])
+    print(f"类别型特征分桶完成，当前特征数 {df.shape[1]}", flush=True)
 
     # 数值列归一化（不动 one-hot 列）
     num_cols = ['passenger_count', 'trip_distance', 'extra', 'trip_duration_min']
@@ -258,7 +426,7 @@ def main():
     parser.add_argument(
         '--nrows',
         type=lambda x: None if str(x).lower() == "none" else int(x),
-        default=100_000,
+        default=100_0000,
         help="行数 (int)；传入 None 表示读取整个文件"
     )
     parser.add_argument('--out', type=str, default='data/processed')
